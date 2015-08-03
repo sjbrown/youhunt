@@ -11,6 +11,8 @@ urlpatterns = [
         views.game , name='game'),
     url(r'^game/(?P<game_id>[^/]+)/start?$',
         views.game_start , name='game start'),
+    url(r'^game/(?P<game_id>[^/]+)/invite/?$',
+        views.game_invite, name='game invite'),
 
     url(r'^player/(?P<player_id>[^/]+)/?$',
         views.player, name='player'),

@@ -12,7 +12,7 @@ Potential prey: {{ c.potential_prey }}
         {% if not c.game.started %}
             <li>Current invites {{ c.game.invites }}
             <li>Invite players to game {{ g }}
-            {% if c.game.invites|length >= 6 %}
+            {% if start_allowed %}
                 <li>Start game {{ g }}
             {% endif %}
         {% else %}

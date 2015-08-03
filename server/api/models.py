@@ -18,6 +18,15 @@ class Game(models.Model, LazyJason):
     def __unicode__(self):
         return self.name
 
+    def new_charactor(self, player):
+        c = Charactor(game=self, player=player)
+        c.save()
+
+    def to_dict(self):
+        return super(Game, self).to_dict('name')
+
+    # API ----------------------------------------------
+
     @classmethod
     def create_new_game(cls, name, creator):
         cls.create_new_game_allowed(name, creator)
@@ -38,20 +47,15 @@ class Game(models.Model, LazyJason):
             if not r.started:
                 raise NotAllowed('create_new_game not allowed - another game with the same name is waiting to start')
 
-    def new_charactor(self, player):
-        c = Charactor(game=self, player=player)
-        c.save()
-
     def start(self, requestor):
         self.start_allowed(requestor)
 
         self.lazy_set(started=True)
         for c in self.charactor_set.all():
             c.on_game_start(self)
+        self.save()
 
     def start_allowed(self, requestor):
-        if len(self.invites) < 6:
-            raise NotAllowed('start not allowed - need more invites')
         g_chars = self.charactor_set.all()
         if len(g_chars) < 6:
             raise NotAllowed('start not allowed - need more charactors')
@@ -59,8 +63,17 @@ class Game(models.Model, LazyJason):
         if set(p_chars).intersection(g_chars):
             raise NotAllowed('start not allowed - you are not in this game')
 
-    def to_dict(self):
-        return super(Game, self).to_dict('name')
+    def invite(self, requestor, invite_json):
+        self.invite_allowed(requestor, invite_json)
+        #TODO: maybe use F() here?
+        self.lazy_set(invites=self.invites+[invite_json])
+        self.save()
+
+    def invite_allowed(self, requestor, invite_json):
+        try:
+            json.loads(invite_json)
+        except:
+            raise NotAllowed('invite not allowed - invalid JSON')
 
 
 class Player(models.Model, LazyJason):

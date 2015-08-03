@@ -9,6 +9,8 @@ from django.http import HttpResponse, JsonResponse, Http404
 from rest_framework.exceptions import APIException
 from rest_framework.status import HTTP_400_BAD_REQUEST
 
+from .forms import InviteForm
+
 class Http400(APIException):
     status_code = HTTP_400_BAD_REQUEST
 
@@ -47,6 +49,21 @@ def game_start(request, game_id):
         raise Http400(detail=e.message)
     j = g.to_dict()
     return JsonResponse(j)
+
+def game_invite(request, game_id):
+    print 'got POST', request.POST
+    p = Player.objects.get(pk=request.session.get('player_id'))
+    g = get_object_or_404(Game, pk=int(game_id))
+    form = InviteForm(request.POST)
+    if not form.is_valid():
+        raise Http400(detail="Invalid invite")
+    try:
+        g.invite(requestor=p, invite_json=form.cleaned_data['invite_json'])
+    except NotAllowed as e:
+        raise Http400(detail=e.message)
+    j = g.to_dict()
+    return JsonResponse(j)
+
 
 def player(request, player_id):
     return HttpResponse('player ID %s' % player_id)

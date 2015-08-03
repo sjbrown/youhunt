@@ -19,9 +19,18 @@ Player: {{ p }}
             <li>Charactors {{ c.game.charactor_set.all }}
             {% if not c.game.started %}
                 <li>Current invites {{ c.game.invites }}
-                {% if c.game.invites|length >= 6 %}
-                    <li>Start game {{ g }}
-                {% endif %}
+                <li>New Invite:
+                <form action="{% url 'api:game invite' c.game.id%}" method="post">
+                {% csrf_token %}
+                <ul>
+                    <li><label for="invite_json">Invite JSON</label>
+                    <li><input id="invite_json" type=text name="invite_json" value='[{"something":"foo"}]' />
+                    </li>
+                    <li><input type="submit">
+                    </li>
+                </ul>
+                </form>
+                </li>
             {% else %}
                 <li>Activity: {{ c.activity }}
             {% endif %}
@@ -30,5 +39,4 @@ Player: {{ p }}
         </li>
     {% endfor %}
 </ul>
-
 

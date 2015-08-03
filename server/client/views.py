@@ -41,6 +41,7 @@ def charactor(request, charactor_id):
     c = results[0]
     return render(request, 'client/charactor.html', {
         'c': c,
+        'start_allowed': c.game.start_allowed(p),
         'template_choosing_mission': 'client/choosing_mission.html',
     })
 
