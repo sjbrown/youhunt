@@ -1,0 +1,26 @@
+<h1>You Hunt! Web Client</h1>
+<h2>Logged-in player charactor interface</h2>
+Charactor: {{ c }}
+<br />
+Activity: {{ c.activity }}
+<br />
+Potential prey: {{ c.potential_prey }}
+<h3>Game {{ c.game.id }} {{ c.game }} Started? {{ c.game.started }}
+</h3>
+<ul>
+        <li>Charactors {{ c.game.charactor_set.all }}</li>
+        {% if not c.game.started %}
+            <li>Current invites {{ c.game.invites }}
+            <li>Invite players to game {{ g }}
+            {% if c.game.invites|length >= 6 %}
+                <li>Start game {{ g }}
+            {% endif %}
+        {% else %}
+            <li>
+            {% if c.activity == 'choosing_mission' %}
+                {% include template_choosing_mission %}
+            {% endif %}
+        {% endif %}
+</ul>
+
+

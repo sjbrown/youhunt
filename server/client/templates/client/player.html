@@ -1,0 +1,34 @@
+<h1>You Hunt! Web Client</h1>
+<h2>Logged-in player interface</h2>
+Player: {{ p }}
+<ul>
+    <li>Create new game
+    <ul>
+        <li>Game name? <input type=text value="jazz" disabled/>
+        </li>
+        <li><a href="{% url 'api:new game' 'jazz' %}">Create</a>
+        </li>
+    </ul>
+</ul>
+<ul>
+    </li>
+    {% for c in p.charactor_set.all %}
+        <li>Game {{ c.game.id }} <b>{{ c.game }}</b>
+        <ul>
+            <li>Started? {{ c.game.started }}</li>
+            <li>Charactors {{ c.game.charactor_set.all }}
+            {% if not c.game.started %}
+                <li>Current invites {{ c.game.invites }}
+                {% if c.game.invites|length >= 6 %}
+                    <li>Start game {{ g }}
+                {% endif %}
+            {% else %}
+                <li>Activity: {{ c.activity }}
+            {% endif %}
+            <li><a href="{% url 'client:charactor' c.id %}">Go</a></li>
+        </ul>
+        </li>
+    {% endfor %}
+</ul>
+
+

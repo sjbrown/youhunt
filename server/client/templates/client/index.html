@@ -1,0 +1,27 @@
+<h1>You Hunt! Web Client</h1>
+<ul>
+    <li>Sign up
+    <ul>
+        <li>What method do you want to use to sign up?
+        Email, Facebook, Twitter
+        </li>
+        <li>Enter your id for that service
+        <input type=text />
+        </li>
+    </ul>
+    </li>
+    <li>Log in
+    <ul>
+        <li>Enter your token
+        <input id="player_token" type=text value="s/1/auth/133" disabled/>
+        <a href="{% url 'client:auth' '1' '133' %}">Go</a>
+        </li>
+    </ul>
+    </li>
+    <li>Player page
+        <a href="{% url 'client:player' '1' %}">Go</a>
+
+    </li>
+</ul>
+
+

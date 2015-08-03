@@ -1,0 +1,14 @@
+<div
+ style="background:#f0f0f0"
+ ><h3>Choosing mission</h3>
+
+Your mission is to get a photo of:
+<select>
+{% for prey in c.potential_prey %}
+<option>{{ prey }}</option>
+{% endfor %}
+</select>
+Doing stunt:
+...
+
+</div>

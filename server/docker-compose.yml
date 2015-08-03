@@ -1,0 +1,14 @@
+db:
+  image: postgres
+web:
+  build: .
+  command: python manage.py runserver 0.0.0.0:8081
+  volumes:
+     # HOST : CONTAINER [: access mode]
+    - .:/projects
+    - /a/tmp/live_root:/root
+  ports:
+     # HOST : CONTAINER
+    - "8081:8081"
+  links:
+    - db
