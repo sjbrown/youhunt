@@ -5,10 +5,29 @@
 ## Install Docker
 ## Install docker-compose
 
-## Set it up:
+
+## Build the project:
+
+Open a terminal in this directory.
+
+`docker-compose run --rm web django-admin.py startproject yweb .`
+
+This creates manage.py (It will warn you about not overwriting files
+in yweb/. That's fine.)
+
+`docker-compose run --rm web python manage.py syncdb`
+
+This creates the databases.
+
+Change the permissions to `.` so that you own everything: `sudo chown $USER -R .`
+
+
+## Start it running:
 
 `docker-compose up`
 
-In another terminal, run:
 
-`docker-compose run web python manage.py syncdb`
+## Shortcuts:
+
+Consider adding an alias yhserver="docker-compose run --rm web"
+
