@@ -1,10 +1,41 @@
+#! /usr/bin/env python2.7
+
 import json
+import random
+import functools
+
 from django.db import models
 from django.db.models.signals import post_init, pre_save
 
 from api.lazyjason import LazyJason, post_init_for_lazies, pre_save_for_lazies
 
-class NotAllowed(Exception): pass
+class NotAllowed(Exception):
+    def __nonzero__(self):
+        return False
+
+def allower(fn):
+    """
+    Allower functions either raise NotAllowed or don't.  If they don't
+    raise a NotAllowed exception, they will forcibly return True
+    """
+    RAISE = object() # Sentinel value
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        fail = kwargs.pop('on_fail', RAISE)
+        try:
+            result = fn(*args, **kwargs)
+        except NotAllowed as e:
+            if fail != RAISE:
+                print e
+                fn.__allower_result = e
+                return fail
+            else:
+                raise
+        else:
+            if result is not None:
+                raise Exception("Improper use of @allower")
+            return True
+    return wrapper
 
 class Game(models.Model, LazyJason):
     name = models.CharField(max_length=1024)
@@ -37,6 +68,7 @@ class Game(models.Model, LazyJason):
         newgame.new_charactor(creator)
         return newgame
 
+    @classmethod
     def create_new_game_allowed(cls, name, creator):
         #TODO: find the player that requested it, see if he has one pending
 
@@ -55,12 +87,13 @@ class Game(models.Model, LazyJason):
             c.on_game_start(self)
         self.save()
 
+    @allower
     def start_allowed(self, requestor):
         g_chars = self.charactor_set.all()
         if len(g_chars) < 6:
             raise NotAllowed('start not allowed - need more charactors')
         p_chars = requestor.charactor_set.all()
-        if set(p_chars).intersection(g_chars):
+        if not set(p_chars).intersection(g_chars):
             raise NotAllowed('start not allowed - you are not in this game')
 
     def invite(self, requestor, invite_json):
@@ -69,6 +102,7 @@ class Game(models.Model, LazyJason):
         self.lazy_set(invites=self.invites+[invite_json])
         self.save()
 
+    @allower
     def invite_allowed(self, requestor, invite_json):
         try:
             json.loads(invite_json)
@@ -117,6 +151,10 @@ class Charactor(models.Model, LazyJason):
     )
 
     def __unicode__(self):
+        return self.name
+
+    @property
+    def name(self):
         return 'C-' + self.player.unique_name
 
     def on_game_start(self, game):
@@ -128,8 +166,44 @@ class Charactor(models.Model, LazyJason):
         # TODO: make this smarter
         allcs = set(self.game.charactor_set.all())
         allcs.remove(self)
-        print 'prey from', allcs
-        return [allcs.pop().id, allcs.pop().id]
+        return [str(x) for x in [allcs.pop().id, allcs.pop().id]]
+
+    def choose_stunt(self):
+        # TODO: make this smarter
+        return random.choice(MissionStunt.objects.all())
+
+    def get_mission_obj(self):
+        try:
+            mission_id = self.mission
+        except:
+            return None
+        mission = Mission.objects.get(id=mission_id)
+
+    # API ----------------------------------------------
+
+    def accept_mission(self, requestor, accept_json):
+        jdata = json.loads(accept_json)
+        self.accept_allowed(requestor, jdata)
+
+        prey_id = jdata.get('prey')
+        stunt_id = jdata.get('stunt')
+
+        mission = Mission(game=self.game)
+        mission.lazy_set(hunter=str(self.id), prey=prey_id, stunt=stunt_id)
+        mission.save()
+
+        self.lazy_set(activity='hunting', mission=str(mission.id),
+                      potential_prey=[])
+        self.save()
+
+    @allower
+    def accept_allowed(self, requestor, jdata):
+        if requestor != self.player:
+            raise NotAllowed('accept not allowed - player does not own char')
+        if self.activity != 'choosing_mission':
+            raise NotAllowed('accept not allowed - not choosing_mission')
+        if jdata.get('prey') not in self.potential_prey:
+            raise NotAllowed('tried to choose a prey that was not a choice')
 
 
 class Mission(models.Model, LazyJason):

@@ -9,7 +9,7 @@ from django.http import HttpResponse, JsonResponse, Http404
 from rest_framework.exceptions import APIException
 from rest_framework.status import HTTP_400_BAD_REQUEST
 
-from .forms import InviteForm
+from .forms import InviteForm, AcceptMissionForm
 
 class Http400(APIException):
     status_code = HTTP_400_BAD_REQUEST
@@ -70,3 +70,17 @@ def player(request, player_id):
 
 def charactor(request, charactor_id):
     return HttpResponse('charactor ID %s' % charactor_id)
+
+def charactor_accept(request, charactor_id):
+    print 'got POST', request.POST
+    p = Player.objects.get(pk=request.session.get('player_id'))
+    c = get_object_or_404(Charactor, pk=int(charactor_id))
+    form = AcceptMissionForm(request.POST)
+    if not form.is_valid():
+        raise Http400(detail="Invalid accept mission")
+    try:
+        c.accept_mission(requestor=p,
+                         accept_json=form.cleaned_data['accept_json'])
+    except NotAllowed as e:
+        raise Http400(detail=e.message)
+    return JsonResponse({'success':True})

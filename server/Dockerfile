@@ -8,5 +8,6 @@ ADD requirements.txt /projects/
 RUN pip install Django
 RUN pip install djangorestframework
 RUN pip install psycopg2
+RUN pip install Mako
 RUN pip install -r requirements.txt
 ADD . /projects/

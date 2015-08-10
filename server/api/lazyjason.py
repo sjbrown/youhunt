@@ -2,6 +2,7 @@
 
 import json
 
+
 class LazyJason(object):
     _lazy_defaults = {}
 
@@ -49,10 +50,27 @@ class LazyJason(object):
         #    print 'LasyJason needs to laze() first'
         if attrname in self._jdict:
             return self._jdict[attrname]
+        if attrname.endswith('__object'):
+            return self.lookup_object_by_id(attrname, self._jdict)
+        if attrname.endswith('__objects'):
+            return self.lookup_objects_by_id(attrname, self._jdict)
         return object.__getattribute__(self, attrname)
 
     def lazy_set(self, **kwargs):
         self._jdict.update(kwargs)
+
+    def lookup_objects_by_id(self, attrname, lookup_dict):
+        orig_attr_name, clsname, _, _ = attrname.rsplit('_',3)
+        objids = lookup_dict[orig_attr_name]
+        obj_set = getattr(self.game, clsname.lower() + '_set')
+        return obj_set.filter(id__in=objids)
+
+    def lookup_object_by_id(self, attrname, lookup_dict):
+        orig_attr_name, clsname, _, _ = attrname.rsplit('_',3)
+        objid = lookup_dict[orig_attr_name]
+        obj_set = getattr(self.game, clsname.lower() + '_set')
+        return obj_set.get(id=objid)
+
 
     def to_dict(self, *extra_args):
         self.freeze_db_attrs()
