@@ -50,6 +50,7 @@ def charactor(request, charactor_id):
     return makoify(request, 'charactor',
         c=c,
         g=c.game,
+        MissionStunt=MissionStunt,
         start_allowed=c.game.start_allowed(c.player, on_fail=False),
     )
 

@@ -2,12 +2,19 @@
 
 import json
 import random
+import datetime
 import functools
 
 from django.db import models
+from django.utils import timezone
+from django_extensions.db.fields import CreationDateTimeField
 from django.db.models.signals import post_init, pre_save
 
 from api.lazyjason import LazyJason, post_init_for_lazies, pre_save_for_lazies
+
+def younger_than_one_day_ago(model_obj):
+    age = datetime.datetime.now(timezone.utc) - model_obj._created
+    return age < datetime.timedelta(days=1)
 
 class NotAllowed(Exception):
     def __nonzero__(self):
@@ -55,6 +62,11 @@ class Game(models.Model, LazyJason):
 
     def to_dict(self):
         return super(Game, self).to_dict('name')
+
+    def game_over(self):
+        #TODO: clean up all cruft like old missions, etc
+        #      ideally only Event objects will remain
+        pass
 
     # API ----------------------------------------------
 
@@ -134,7 +146,7 @@ class MissionStunt(models.Model, LazyJason):
 # Game - dependent models
 
 class Event(models.Model, LazyJason):
-    time_created = models.DateTimeField()
+    _created = CreationDateTimeField()
     game = models.ForeignKey(Game)
     db_attrs = models.CharField(default='{}', max_length=100*1024)
     _lazy_defaults = {'name':'generic event'}
@@ -147,7 +159,7 @@ class Charactor(models.Model, LazyJason):
     _lazy_defaults = dict(
         coin = 0,
         activity = 'choosing_mission',
-        potential_prey = [],
+        potential_missions = [],
     )
 
     def __unicode__(self):
@@ -159,14 +171,43 @@ class Charactor(models.Model, LazyJason):
 
     def on_game_start(self, game):
         self.lazy_set(coin=100)
-        self.lazy_set(potential_prey = self.choose_potential_prey())
+        self.get_potential_missions(self_save=False)
         self.save()
+
+    def get_potential_missions(self, self_save=True):
+        if hasattr(self, 'potential_missions'):
+            missions = self.potential_missions_Mission__objects
+            print missions
+            if missions and all(younger_than_one_day_ago(x) for x in missions):
+                return missions
+            # Old ones will garbage-collect on game_over
+
+        missions = []
+        stunt = self.choose_stunt()
+        for prey in self.choose_potential_prey():
+            award, bounties = self.current_award_and_bounties()
+            m = Mission(game = self.game)
+            m.lazy_set(
+                stunt = str(stunt.id),
+                hunter = str(self.id),
+                prey = str(prey.id),
+                award = award,
+                bounties = [str(x.id) for x in bounties],
+            )
+            m.save()
+            missions.append(m)
+        self.lazy_set(potential_missions = [str(x.id) for x in missions])
+        if self_save:
+            self.save()
+
+        return missions
 
     def choose_potential_prey(self):
         # TODO: make this smarter
         allcs = set(self.game.charactor_set.all())
         allcs.remove(self)
-        return [str(x) for x in [allcs.pop().id, allcs.pop().id]]
+        return [allcs.pop(), allcs.pop()]
+        #return [str(x) for x in [allcs.pop().id, allcs.pop().id]]
 
     def choose_stunt(self):
         # TODO: make this smarter
@@ -177,7 +218,13 @@ class Charactor(models.Model, LazyJason):
             mission_id = self.mission
         except:
             return None
-        return Mission.objects.get(id=mission_id)
+        mission = Mission.objects.get(id=mission_id)
+        return mission.human_readable()
+
+    def current_award_and_bounties(self):
+        bounties = Bounty.objects.filter(target=self.id)
+        # TODO: make award smarter to incentivize hunting rare prizes
+        return 200, bounties
 
     # API ----------------------------------------------
 
@@ -193,7 +240,7 @@ class Charactor(models.Model, LazyJason):
         mission.save()
 
         self.lazy_set(activity='hunting', mission=str(mission.id),
-                      potential_prey=[])
+                      potential_missions=[])
         self.save()
 
     @allower
@@ -202,23 +249,46 @@ class Charactor(models.Model, LazyJason):
             raise NotAllowed('accept not allowed - player does not own char')
         if self.activity != 'choosing_mission':
             raise NotAllowed('accept not allowed - not choosing_mission')
-        if jdata.get('prey') not in self.potential_prey:
-            raise NotAllowed('tried to choose a prey that was not a choice')
+
+        m_id = jdata.get('mission')
+        try:
+            m = Mission.objects.get(id=m_id)
+        except:
+            raise NotAllowed('accept not_allowed - mission has expired')
 
 
 class Mission(models.Model, LazyJason):
+    _created = CreationDateTimeField()
     game = models.ForeignKey(Game)
     db_attrs = models.CharField(default='{}', max_length=100*1024)
-    _lazy_defaults = {'stunt':None, 'hunter':None, 'prey':None}
+    _lazy_defaults = dict(
+        stunt = None,
+        hunter = None,
+        prey = None,
+        award = 0,
+        bounties = [],
+    )
 
     def __unicode__(self):
         return "%s->%s (%s)" % (self.hunter, self.prey, self.stunt)
 
+    def human_readable(self):
+        prey_obj = Charactor.objects.get(id=self.prey)
+        stunt_obj = MissionStunt.objects.get(id=self.stunt)
+        return "%s %s" % (prey_obj.name, stunt_obj.text)
+
+    def award_amounts(self):
+        bounties = self.bounties_Bounty__objects
+        additional = sum(b.coin for b in bounties)
+        return (200, additional)
+
+
 
 class Bounty(models.Model, LazyJason):
     game = models.ForeignKey(Game)
+    target = models.ForeignKey(Charactor)
     db_attrs = models.CharField(default='{}', max_length=100*1024)
-    _lazy_defaults = {'coin':0, 'poster':None, 'target':None}
+    _lazy_defaults = {'coin':0, 'poster':None}
 
 
 class Award(models.Model, LazyJason):

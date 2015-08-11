@@ -4,7 +4,7 @@ Charactor: ${ c }
 <br />
 Activity: ${ c.activity }
 <br />
-Potential prey: ${ c.potential_prey }
+Potential missions: ${ c.potential_missions }
 <h3>Game ${ g.id } ${ g } Started? ${ g.started }
 </h3>
 <ul>
