@@ -177,7 +177,7 @@ class Charactor(models.Model, LazyJason):
             mission_id = self.mission
         except:
             return None
-        mission = Mission.objects.get(id=mission_id)
+        return Mission.objects.get(id=mission_id)
 
     # API ----------------------------------------------
 
@@ -210,6 +210,9 @@ class Mission(models.Model, LazyJason):
     game = models.ForeignKey(Game)
     db_attrs = models.CharField(default='{}', max_length=100*1024)
     _lazy_defaults = {'stunt':None, 'hunter':None, 'prey':None}
+
+    def __unicode__(self):
+        return "%s->%s (%s)" % (self.hunter, self.prey, self.stunt)
 
 
 class Bounty(models.Model, LazyJason):
