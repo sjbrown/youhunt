@@ -16,6 +16,10 @@ mplates = TemplateLookup(directories=['client/templates/client'])
 from api.models import *
 
 def index(request):
+    print Game
+    print '----'
+    print get_object_or_404(Game, pk=1)
+    print '----'
     g = get_object_or_404(Game, pk=1)
     return render(request, 'client/index.html', {
         'g': g,
@@ -52,6 +56,25 @@ def charactor(request, charactor_id):
         g=c.game,
         MissionStunt=MissionStunt,
         start_allowed=c.game.start_allowed(c.player, on_fail=False),
+    )
+
+def charactor_submission(request, charactor_id, submission_id):
+    session_pid = request.session.get('player_id')
+    p = get_object_or_404(Player, pk=session_pid)
+    results = [c for c in p.charactor_set.all()
+               if c.id == int(charactor_id)]
+    if not results:
+        raise Http404("Charactor not found in Player %s's list" % session_pid)
+    c = results[0]
+    s = get_object_or_404(Submission, pk=submission_id)
+
+    role = c.role_in_submission(s)
+
+    return makoify(request, 'charactor_submission',
+        c=c,
+        s=s,
+        g=c.game,
+        role=role,
     )
 
 def make_url(name, *args, **kwargs):

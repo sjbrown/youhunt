@@ -21,6 +21,8 @@ urlpatterns = [
         views.charactor, name='charactor'),
     url(r'^charactor/(?P<charactor_id>[^/]+)/accept/?$',
         views.charactor_accept, name='charactor accept'),
+    url(r'^charactor/(?P<charactor_id>[^/]+)/submit/?$',
+        views.charactor_submit, name='charactor submit'),
 
 ]
 

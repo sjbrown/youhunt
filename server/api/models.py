@@ -140,7 +140,9 @@ class MissionStunt(models.Model, LazyJason):
     _lazy_defaults = {'text':''}
 
     def __unicode__(self):
-        return self.text
+        if hasattr(self, 'text'):
+            return self.text
+        return 'NEW MISSION STUNT'
 
 
 # -----------------------------------------------------------------------------
@@ -158,9 +160,13 @@ class Charactor(models.Model, LazyJason):
     player = models.ForeignKey(Player)
     db_attrs = models.CharField(default='{}', max_length=100*1024)
     _lazy_defaults = dict(
+        c_name = 'C-?',
         coin = 0,
         activity = 'choosing_mission',
         potential_missions = [],
+        notifications = [],
+        current_prey_submissions = [],
+        current_judge_submissions = [],
     )
 
     def __unicode__(self):
@@ -168,10 +174,13 @@ class Charactor(models.Model, LazyJason):
 
     @property
     def name(self):
+        if hasattr(self, 'c_name'):
+            return self.c_name
         return 'C-' + self.player.unique_name
 
     def on_game_start(self, game):
-        self.lazy_set(coin=100)
+        self.coin = 100
+        self.c_name = 'C-'+ self.player.unique_name
         self.get_potential_missions(self_save=False)
         self.save()
 
@@ -213,18 +222,54 @@ class Charactor(models.Model, LazyJason):
         # TODO: make this smarter
         return random.choice(MissionStunt.objects.all())
 
-    def get_mission_obj(self):
-        try:
-            mission_id = self.mission
-        except:
-            return None
-        mission = Mission.objects.get(id=mission_id)
+    def human_readable_mission(self):
+        mission = self.mission_Mission__object
         return mission.human_readable()
 
     def current_award_and_bounties(self):
         bounties = Bounty.objects.filter(target=self.id)
         # TODO: make award smarter to incentivize hunting rare prizes
         return 200, bounties
+
+    def notify_as_prey(self, submission):
+        self.lazy_set(current_prey_submissions=
+            self.current_prey_submissions + [str(submission.id)]
+        )
+        self.save()
+
+    def notify_prey_finished(self, submission):
+        self.current_prey_submissions.remove(str(submission.id))
+        self.save()
+
+    def notify_as_judge(self, submission):
+        self.lazy_set(current_judge_submissions=
+            self.current_judge_submissions + [str(submission.id)]
+        )
+        self.save()
+
+    def notify_judge_finished(self, submission):
+        self.current_judge_submissions.remove(str(submission.id))
+        self.save()
+
+    def submission_accepted(self, submission):
+        self.submission = None
+        self.activity = 'collecting_reward'
+        self.save()
+
+    def submission_rejected(self, submission):
+        self.submission = None
+        self.activity = 'hunting'
+        self.save()
+
+    def role_in_submission(self, submission):
+        m = submission.mission_Mission__object
+        if m.hunter_Charactor__object == self:
+            return 'hunter'
+        if m.prey_Charactor__object == self:
+            return 'prey'
+        if self in submission.judges_Charactor__objects:
+            return 'judge'
+        return 'spectator'
 
     # API ----------------------------------------------
 
@@ -252,6 +297,27 @@ class Charactor(models.Model, LazyJason):
             raise NotAllowed('accept not_allowed - mission has expired')
         if m not in self.get_potential_missions():
             raise NotAllowed('accept not_allowed - mission is not a potential')
+
+    def submit_mission(self, requestor, submit_json):
+        jdata = json.loads(submit_json)
+        self.submit_allowed(requestor, jdata)
+
+        photo_url = jdata.get('photo_url')
+        s = Submission(game = self.game)
+        s.mission = str(self.mission)
+        s.photo_url = photo_url
+        s.start()
+
+        self.lazy_set(activity='awaiting_judgement', submission=str(s.id))
+        self.save()
+
+    @allower
+    def submit_allowed(self, requestor, jdata):
+        if requestor != self.player:
+            raise NotAllowed('submit not allowed - player does not own char')
+        if self.activity != 'hunting':
+            raise NotAllowed('submit not allowed - not hunting')
+
 
 
 class Mission(models.Model, LazyJason):
@@ -298,11 +364,51 @@ class Submission(models.Model, LazyJason):
     # This is the pic
     game = models.ForeignKey(Game)
     db_attrs = models.CharField(default='{}', max_length=100*1024)
-    _lazy_defaults = {
-        'mission':None, 'pic_url':'', 'tips':{},
-        'judges':[], 'winning_judge':None, 'judgement':None,
-    }
+    _lazy_defaults = dict(
+        mission = None,
+        photo_url = '',
+        tips = {},
+        judges = [],
+        winning_judge = None,
+        judgement = None,
+    )
 
+    def start(self):
+        self.choose_judges()
+        self.save()
+        self.notify_players_start()
+
+    def finish(self, winning_judge, judgement):
+        self.winning_judge = winning_judge
+        self.judgement = judgement
+        self.save()
+        m = self.mission_Mission__object
+        # TODO: distribute tips
+        if judgement == True:
+            m.hunter_Charactor__object.submission_accepted(self)
+        else:
+            m.hunter_Charactor__object.submission_rejected(self)
+        self.notify_players_finish()
+
+    def choose_judges(self):
+        # TODO: make this smarter
+        allcs = set(self.game.charactor_set.all())
+        m = self.mission_Mission__object
+        allcs.remove(m.hunter_Charactor__object)
+        allcs.remove(m.prey_Charactor__object)
+        self.judges = [allcs.pop(), allcs.pop()]
+
+    def notify_players_start(self):
+        m = self.mission_Mission__object
+        m.prey_Charactor__object.notify_as_prey(self)
+        for judge in self.judges_Charactor__objects:
+            judge.notify_as_judge(self)
+
+    def notify_players_finish(self):
+        m = self.mission_Mission__object
+        m.prey_Charactor__object.notify_prey_finished(self)
+        for judge in self.judges_Charactor__objects:
+            judge.notify_judge_finished(self)
 
 for val in locals().values():
     if hasattr(val, '__bases__'):

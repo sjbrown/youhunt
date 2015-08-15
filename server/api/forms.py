@@ -24,3 +24,9 @@ class AcceptMissionForm(forms.Form):
 
     def clean_accept_json(self):
         return clean_json(self.cleaned_data, 'accept_json')
+
+class SubmitMissionForm(forms.Form):
+    submit_json = forms.CharField(label='Submit JSON', max_length=100*1024)
+
+    def clean_submit_json(self):
+        return clean_json(self.cleaned_data, 'submit_json')
