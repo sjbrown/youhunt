@@ -13,7 +13,8 @@ from django.db.models.signals import post_init, pre_save
 from api.lazyjason import LazyJason, post_init_for_lazies, pre_save_for_lazies
 
 def younger_than_one_day_ago(model_obj):
-    age = datetime.datetime.now(timezone.utc) - model_obj._created
+    #age = datetime.datetime.now(timezone.utc) - model_obj._created
+    age = datetime.datetime.now() - model_obj._created
     return age < datetime.timedelta(days=1)
 
 class NotAllowed(Exception):
@@ -207,7 +208,6 @@ class Charactor(models.Model, LazyJason):
         allcs = set(self.game.charactor_set.all())
         allcs.remove(self)
         return [allcs.pop(), allcs.pop()]
-        #return [str(x) for x in [allcs.pop().id, allcs.pop().id]]
 
     def choose_stunt(self):
         # TODO: make this smarter
@@ -232,14 +232,9 @@ class Charactor(models.Model, LazyJason):
         jdata = json.loads(accept_json)
         self.accept_allowed(requestor, jdata)
 
-        prey_id = jdata.get('prey')
-        stunt_id = jdata.get('stunt')
+        m_id = jdata.get('mission')
 
-        mission = Mission(game=self.game)
-        mission.lazy_set(hunter=str(self.id), prey=prey_id, stunt=stunt_id)
-        mission.save()
-
-        self.lazy_set(activity='hunting', mission=str(mission.id),
+        self.lazy_set(activity='hunting', mission=str(m_id),
                       potential_missions=[])
         self.save()
 
@@ -255,6 +250,8 @@ class Charactor(models.Model, LazyJason):
             m = Mission.objects.get(id=m_id)
         except:
             raise NotAllowed('accept not_allowed - mission has expired')
+        if m not in self.get_potential_missions():
+            raise NotAllowed('accept not_allowed - mission is not a potential')
 
 
 class Mission(models.Model, LazyJason):

@@ -4,8 +4,14 @@ Charactor: ${ c }
 <br />
 Activity: ${ c.activity }
 <br />
-Potential missions: ${ c.potential_missions }
-<h3>Game ${ g.id } ${ g } Started? ${ g.started }
+${ c._jdict }
+<br />
+<h3>Game ${ g.id } ${ g }
+% if g.started:
+    (Started)
+% else:
+    (Not started)
+% endif
 </h3>
 <ul>
         <li>Charactors ${ [str(x) for x in g.charactor_set.all()] }</li>
