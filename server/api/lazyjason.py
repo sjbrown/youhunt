@@ -6,7 +6,7 @@ import json
 class LazyJason(object):
     _lazy_defaults = {}
 
-    def laze(self):
+    def load(self):
         self._orig_db_attrs = self.db_attrs
         if hasattr(self, '_jdict'):
             return
@@ -15,12 +15,18 @@ class LazyJason(object):
             self._jdict = json.loads(self.db_attrs)
         except ValueError:
             print 'Corrupt db_attrs'
+        for key, val in self._lazy_defaults.items():
+            if key not in self._jdict:
+                self._jdict[key] = val
 
     def freeze_db_attrs(self):
         if self.db_attrs != self._orig_db_attrs:
             # Someone has gone in raw and changed db_attrs.  It was probably
             # the Django admin interface.
-            print 'Lost track of the source of truth.'
+            # Or else it was multiple calls to save()
+            print '--'
+            print 'Lost track of the source of truth on ', self
+            print '--'
             try:
                 self._jdict = json.loads(self.db_attrs)
                 print 'db_attrs clobbers _jdict'
@@ -47,7 +53,7 @@ class LazyJason(object):
 
     def __getattr__(self, attrname):
         #if not hasattr(self, '_jdict'):
-        #    print 'LasyJason needs to laze() first'
+        #    print 'LasyJason needs to load() first'
         if attrname in self._jdict:
             return self._jdict[attrname]
         if attrname.endswith('__object'):
@@ -58,6 +64,18 @@ class LazyJason(object):
 
     def lazy_set(self, **kwargs):
         self._jdict.update(kwargs)
+
+    def __setattr__(self, attrname, val):
+        if hasattr(self, '_jdict') and attrname in self._jdict:
+            if isinstance(val, LazyJason):
+                print 'jdict values should be stringed ids of model objects'
+                val = str(val.id)
+            if isinstance(val, list) and val and isinstance(val[0], LazyJason):
+                print 'jdict values should be stringed ids of model objects'
+                val = [str(x.id) for x in val]
+            print 'a:v', {attrname:val}
+            return self.lazy_set(**{attrname:val})
+        return super(LazyJason, self).__setattr__(attrname, val)
 
     def lookup_objects_by_id(self, attrname, lookup_dict):
         orig_attr_name, clsname, _, _ = attrname.rsplit('_',3)
@@ -87,4 +105,4 @@ def pre_save_for_lazies(**kwargs):
 
 def post_init_for_lazies(**kwargs):
     instance = kwargs.get('instance')
-    instance.laze()
+    instance.load()
