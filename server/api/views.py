@@ -2,8 +2,9 @@
 
 import json
 from cgi import escape as html_esc
-from functools import partial
+from functools import partial, wraps
 
+from django import forms
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, JsonResponse, Http404
 from rest_framework.exceptions import APIException
@@ -16,6 +17,31 @@ class Http400(APIException):
 
 from api.models import *
 
+def kwargs_from_json(jdata):
+    try:
+        print 'Trying to loads the jdata', jdata
+        json_data = json.loads(jdata)
+    except Exception as e:
+        print 'JSON PARSE FAIL', e
+        raise forms.ValidationError("Invalid JSON data in %s" % key)
+    assert type(json_data) == dict
+    return json_data
+
+def standard_charactor_view(fn):
+    @wraps(fn)
+    def wrapper(request, charactor_id, **kwargs):
+        print request.POST
+        json_key = [k for k in request.POST.keys()
+                    if k.endswith('_json')][0]
+        p = Player.objects.get(pk=request.session.get('player_id'))
+        c = get_object_or_404(Charactor, pk=int(charactor_id))
+        kwargs = kwargs_from_json(request.POST[json_key])
+        print 'kwargs', kwargs
+        ret_dict = fn(request, p, c, **kwargs)
+        return JsonResponse(ret_dict)
+    return wrapper
+
+
 def index(request):
     from api.urls import urlpatterns
     s = '<h1>API Listing</h1>\n'
@@ -24,13 +50,11 @@ def index(request):
     s += '\n<hr>Your session: "%s"' % request.session.items()
     return HttpResponse(s)
 
-def new_game(request, name):
-    p = Player.objects.get(pk=request.session.get('player_id'))
-    try:
-        g = Game.create_new_game(name=name, creator=p)
-    except NotAllowed as e:
-        raise Http400(detail=e.message)
-    return JsonResponse(dict(game_id=g.id, status='happy jazz'))
+def player(request, player_id):
+    return HttpResponse('player ID %s' % player_id)
+
+def charactor(request, charactor_id):
+    return HttpResponse('charactor ID %s' % charactor_id)
 
 def game(request, game_id):
     try:
@@ -39,6 +63,14 @@ def game(request, game_id):
         raise Http404('Could not find game')
     j = g.to_dict()
     return JsonResponse(j)
+
+def new_game(request, name):
+    p = Player.objects.get(pk=request.session.get('player_id'))
+    try:
+        g = Game.create_new_game(name=name, creator=p)
+    except NotAllowed as e:
+        raise Http400(detail=e.message)
+    return JsonResponse(dict(game_id=g.id, status='happy jazz'))
 
 def game_start(request, game_id):
     p = Player.objects.get(pk=request.session.get('player_id'))
@@ -51,7 +83,6 @@ def game_start(request, game_id):
     return JsonResponse(j)
 
 def game_invite(request, game_id):
-    print 'got POST', request.POST
     p = Player.objects.get(pk=request.session.get('player_id'))
     g = get_object_or_404(Game, pk=int(game_id))
     form = InviteForm(request.POST)
@@ -65,35 +96,13 @@ def game_invite(request, game_id):
     return JsonResponse(j)
 
 
-def player(request, player_id):
-    return HttpResponse('player ID %s' % player_id)
+@standard_charactor_view
+def charactor_accept(request, p, c, mission_id=None):
+    c.accept_mission(p, mission_id)
+    return {'success':True}
 
-def charactor(request, charactor_id):
-    return HttpResponse('charactor ID %s' % charactor_id)
+@standard_charactor_view
+def charactor_submit(request, p, c, photo_url=None):
+    c.submit_mission(p, photo_url)
+    return {'success':True, 'submission':c.submission}
 
-def charactor_accept(request, charactor_id):
-    p = Player.objects.get(pk=request.session.get('player_id'))
-    c = get_object_or_404(Charactor, pk=int(charactor_id))
-    form = AcceptMissionForm(request.POST)
-    if not form.is_valid():
-        raise Http400(detail="Invalid accept mission")
-    try:
-        c.accept_mission(requestor=p,
-                         accept_json=form.cleaned_data['accept_json'])
-    except NotAllowed as e:
-        raise Http400(detail=e.message)
-    return JsonResponse({'success':True})
-
-def charactor_submit(request, charactor_id):
-    print 'got POST', request.POST
-    p = Player.objects.get(pk=request.session.get('player_id'))
-    c = get_object_or_404(Charactor, pk=int(charactor_id))
-    form = SubmitMissionForm(request.POST)
-    if not form.is_valid():
-        raise Http400(detail="Invalid submit mission")
-    try:
-        c.submit_mission(requestor=p,
-                         submit_json=form.cleaned_data['submit_json'])
-    except NotAllowed as e:
-        raise Http400(detail=e.message)
-    return JsonResponse({'success':True, 'submission':c.submission})

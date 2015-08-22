@@ -273,36 +273,30 @@ class Charactor(models.Model, LazyJason):
 
     # API ----------------------------------------------
 
-    def accept_mission(self, requestor, accept_json):
-        jdata = json.loads(accept_json)
-        self.accept_allowed(requestor, jdata)
+    def accept_mission(self, requestor, mission_id):
+        self.accept_allowed(requestor, mission_id)
 
-        m_id = jdata.get('mission')
-
-        self.lazy_set(activity='hunting', mission=str(m_id),
+        self.lazy_set(activity='hunting', mission=str(mission_id),
                       potential_missions=[])
         self.save()
 
     @allower
-    def accept_allowed(self, requestor, jdata):
+    def accept_allowed(self, requestor, mission_id):
         if requestor != self.player:
             raise NotAllowed('accept not allowed - player does not own char')
         if self.activity != 'choosing_mission':
             raise NotAllowed('accept not allowed - not choosing_mission')
 
-        m_id = jdata.get('mission')
         try:
-            m = Mission.objects.get(id=m_id)
+            m = Mission.objects.get(id=mission_id)
         except:
             raise NotAllowed('accept not_allowed - mission has expired')
         if m not in self.get_potential_missions():
             raise NotAllowed('accept not_allowed - mission is not a potential')
 
-    def submit_mission(self, requestor, submit_json):
-        jdata = json.loads(submit_json)
-        self.submit_allowed(requestor, jdata)
+    def submit_mission(self, requestor, photo_url):
+        self.submit_allowed(requestor, photo_url)
 
-        photo_url = jdata.get('photo_url')
         s = Submission(game = self.game)
         s.mission = str(self.mission)
         s.photo_url = photo_url
@@ -312,7 +306,7 @@ class Charactor(models.Model, LazyJason):
         self.save()
 
     @allower
-    def submit_allowed(self, requestor, jdata):
+    def submit_allowed(self, requestor, photo_url):
         if requestor != self.player:
             raise NotAllowed('submit not allowed - player does not own char')
         if self.activity != 'hunting':

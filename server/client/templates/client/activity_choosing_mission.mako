@@ -40,7 +40,7 @@ I accept this mission:
 ${ csrf }
 <ul>
     <li><input id="accept_json" type=text name="accept_json"
-         value='{"mission":"${m.id}"}'
+         value='{"mission_id":"${m.id}"}'
          /></li>
     <li><input type="submit" />
     </li>

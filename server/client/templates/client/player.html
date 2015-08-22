@@ -13,7 +13,7 @@ Player: {{ p }}
 <ul>
     </li>
     {% for c in p.charactor_set.all %}
-        <li>Game {{ c.game.id }} <b>{{ c.game }}</b>
+        <li>Game {{ c.game.id }} <b>{{ c.game }} {{c}}</b> 
         <ul>
             <li>Started? {{ c.game.started }}</li>
             <li>Charactors {{ c.game.charactor_set.all }}
