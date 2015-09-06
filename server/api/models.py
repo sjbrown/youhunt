@@ -178,6 +178,16 @@ class Charactor(models.Model, LazyJason):
             return self.c_name
         return 'C-' + self.player.unique_name
 
+    @property
+    def submission(self):
+        result = [
+            s for s in self.game.submission_set.all()
+            if (s.dismissed == False and s.stakeholders['hunter'] == self)
+        ]
+        if result:
+            return result[0]
+        return None
+
     def on_game_start(self, game):
         self.coin = 100
         self.c_name = 'C-'+ self.player.unique_name
@@ -254,25 +264,17 @@ class Charactor(models.Model, LazyJason):
         self.current_judge_submissions.remove(str(submission.id))
         self.save()
 
-    def submission_accepted(self, submission):
-        self.submission = None
-        self.activity = 'collecting_reward'
+    def submission_finished(self, submission):
+        self.activity = 'submission_finished'
         self.save()
 
-    def submission_rejected(self, submission):
-        self.submission = None
-        self.activity = 'hunting'
+    def submission_dismissed(self, submission):
+        if submission.judgement == True:
+            self.activity = 'choosing_mission'
+        if submission.judgement == False:
+            self.activity = 'hunting'
         self.save()
 
-    def role_in_submission(self, submission):
-        m = submission.mission_Mission__object
-        if m.hunter_Charactor__object == self:
-            return 'hunter'
-        if m.prey_Charactor__object == self:
-            return 'prey'
-        if self in submission.judges_Charactor__objects:
-            return 'judge'
-        return 'spectator'
 
     # API ----------------------------------------------
 
@@ -368,11 +370,12 @@ class Submission(models.Model, LazyJason):
         judges = [],
         winning_judge = None,
         judgement = None,
+        dismissed = False,
     )
     base_pay = {'yes': 0, 'no': 25}
 
     def __unicode__(self):
-        return "%s (Mission %s)" % (self.judgement, self.mission)
+        return "%s %s (Mission %s)" % (self.id, self.judgement, self.mission)
 
     @property
     def stakeholders(self):
@@ -383,6 +386,15 @@ class Submission(models.Model, LazyJason):
         for i, judge in enumerate(self.judges_Charactor__objects):
             s['j' + str(i)] = judge
         return s
+
+    def role_of_charactor(self, c):
+        if c == self.stakeholders['hunter']:
+            return 'hunter'
+        if c == self.stakeholders['prey']:
+            return 'prey'
+        if c in self.stakeholders.values():
+            return 'judge'
+        return 'spectator'
 
     @property
     def pay_yes(self):
@@ -398,14 +410,13 @@ class Submission(models.Model, LazyJason):
         self.notify_players_start()
 
     def finish(self, winning_judge_obj, judgement):
-        self.winning_judge = winning_judge_obj.id
+        self.winning_judge = str(winning_judge_obj.id)
         self.judgement = judgement
         self.save()
+        self.stakeholders['hunter'].submission_finished(self)
         if judgement == True:
-            self.stakeholders['hunter'].submission_accepted(self)
             winning_judge_obj.add_coin(self.pay_yes)
         else:
-            self.stakeholders['hunter'].submission_rejected(self)
             winning_judge_obj.add_coin(self.pay_no)
         self.notify_players_finish()
 
@@ -444,6 +455,44 @@ class Submission(models.Model, LazyJason):
         if charactor not in self.judges_Charactor__objects:
             raise NotAllowed('not allowed - char is not a judge')
 
+    def dismiss(self, requestor, charactor):
+        self.dismiss_allowed(requestor, charactor)
+        self.dismissed = True
+        self.save()
+        charactor.submission_dismissed(self)
+
+    @allower
+    def dismiss_allowed(self, requestor, charactor):
+        if requestor != charactor.player:
+            raise NotAllowed('not allowed - player does not own char')
+        if self.judgement is None:
+            raise NotAllowed('not allowed - submission has not been judged')
+        if charactor != self.stakeholders['hunter']:
+            raise NotAllowed('not allowed - hunter only may dismiss')
+
+
+    # TODO: put this in the Bounty class
+    def add_bounty(self, requestor, charactor, judge_bounty):
+        self.add_bounty_allowed(requestor, charactor)
+        print 'TODO: add bounty'
+
+    @allower
+    def add_bounty_allowed(self, requestor, charactor, judge_bounty):
+        if requestor != charactor.player:
+            raise NotAllowed('not allowed - player does not own char')
+        if self.judgement is None:
+            raise NotAllowed('not allowed - submission has not been judged')
+        if (charactor not in
+            [self.stakeholders['hunter'], self.stakeholders['prey']]):
+            raise NotAllowed('not allowed - must be hunter or prey')
+        if (self.judgement == True
+            and charactor == self.stakeholders['hunter']):
+            raise NotAllowed('not allowed - hunter was favoured')
+        if (self.judgement == False
+            and charactor == self.stakeholders['prey']):
+            raise NotAllowed('not allowed - prey was favoured')
+        if charactor.coin < judge_bounty:
+            raise NotAllowed('not allowed - char does not have the coin')
 
 
 for val in locals().values():

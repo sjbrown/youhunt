@@ -121,7 +121,7 @@ def charactor_accept(request, p, c, mission_id=None):
 @standard_charactor_view
 def charactor_submit(request, p, c, photo_url=None):
     c.submit_mission(p, photo_url)
-    return {'success':True, 'submission':c.submission}
+    return {'success':True, 'submission':c.submission.id}
 
 class Make(object):
     class_mapper = dict(
@@ -133,14 +133,22 @@ class Make(object):
     )
 
     @staticmethod
-    def a_bool(from_fn, field_name=None):
-        def bool_wrapper(request, argname, *fn_args, **fn_kwargs):
+    def literal_wrapper(from_fn, field_name, literal_type):
+        def l_wrapper(request, argname, *fn_args, **fn_kwargs):
             if field_name is not None:
                 argname = field_name
             val = from_fn(request, argname, *fn_args, **fn_kwargs)
-            val = bool(val)
+            val = literal_type(val)
             return val
-        return bool_wrapper
+        return l_wrapper
+
+    @staticmethod
+    def an_int(from_fn, field_name=None):
+        return Make.literal_wrapper(from_fn, field_name, int)
+
+    @staticmethod
+    def a_bool(from_fn, field_name=None):
+        return Make.literal_wrapper(from_fn, field_name, bool)
 
     @classmethod
     def an_obj(cls, from_fn, field_name=None):
@@ -190,12 +198,19 @@ def submission_judgement(
     submission = Make.an_obj(from_path),
     judgement = Make.a_bool(from_json),
 ):
-    print 'p', p
-    print 'c', charactor
-    print 's', submission
-    print 'judgement', judgement
-    print request.POST
     submission.judge(p, charactor, judgement)
     return {'success':True, 'submission':submission.id}
 
+@Make.args
+def submission_dismissal(
+    request,
+    p = from_session,
+    charactor = Make.an_obj(from_json),
+    submission = Make.an_obj(from_path),
+):
+    print 'p', p
+    print 'c', charactor
+    print 's', submission
+    submission.dismiss(p, charactor)
+    return {'success':True, 'submission':submission.id}
 

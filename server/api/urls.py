@@ -26,6 +26,8 @@ urlpatterns = [
 
     url(r'^submission/(?P<submission_id>[^/]+)/judgement/?$',
         views.submission_judgement, name='submission judgement'),
+    url(r'^submission/(?P<submission_id>[^/]+)/dismissal/?$',
+        views.submission_dismissal, name='submission dismissal'),
 
 ]
 

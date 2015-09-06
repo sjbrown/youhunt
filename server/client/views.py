@@ -68,7 +68,7 @@ def charactor_submission(request, charactor_id, submission_id):
     c = results[0]
     s = get_object_or_404(Submission, pk=submission_id)
 
-    role = c.role_in_submission(s)
+    role = s.role_of_charactor(c)
 
     return makoify(request, 'charactor_submission',
         c=c,

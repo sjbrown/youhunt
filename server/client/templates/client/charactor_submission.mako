@@ -17,7 +17,7 @@ Mission: ${ m } ${ m._jdict }
  />
 
 <hr />
-% if role == 'judge':
+% if role == 'judge' and s.judgement is None:
     Is this a picture of ${ m.human_readable() }
     ?
 
@@ -56,4 +56,8 @@ Mission: ${ m } ${ m._jdict }
    </li>
    </ul>
 
+% elif role == 'judge':
+    <b>Already judged by ${ s.winning_judge_Charactor__object }</b>
+    <br />
+    ${ s._jdict }
 % endif

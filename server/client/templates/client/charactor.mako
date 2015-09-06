@@ -41,10 +41,14 @@ ${ c._jdict }
             <li>
             % if c.activity == 'choosing_mission':
                 <%include file='activity_choosing_mission.mako' />
-            % endif
-            % if c.activity == 'hunting':
+            % elif c.activity == 'hunting':
                 <%include file='activity_hunting.mako' />
+            % elif c.activity == 'awaiting_judgement':
+                <%include file='activity_awaiting_judgement.mako' />
+            % elif c.activity == 'submission_finished':
+                <%include file='activity_submission_finished.mako' />
             % endif
+            </li>
         % endif
 </ul>
 
