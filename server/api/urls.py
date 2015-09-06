@@ -24,5 +24,8 @@ urlpatterns = [
     url(r'^charactor/(?P<charactor_id>[^/]+)/submit/?$',
         views.charactor_submit, name='charactor submit'),
 
+    url(r'^submission/(?P<submission_id>[^/]+)/judgement/?$',
+        views.submission_judgement, name='submission judgement'),
+
 ]
 

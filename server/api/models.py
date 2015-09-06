@@ -184,6 +184,9 @@ class Charactor(models.Model, LazyJason):
         self.get_potential_missions(self_save=False)
         self.save()
 
+    def add_coin(self, amount):
+        self.coin = self.coin + amount
+
     def get_potential_missions(self, self_save=True):
         if hasattr(self, 'potential_missions'):
             missions = self.potential_missions_Mission__objects
@@ -361,27 +364,49 @@ class Submission(models.Model, LazyJason):
     _lazy_defaults = dict(
         mission = None,
         photo_url = '',
-        tips = {},
+        tips = {'yes':0, 'no':0},
         judges = [],
         winning_judge = None,
         judgement = None,
     )
+    base_pay = {'yes': 0, 'no': 25}
+
+    def __unicode__(self):
+        return "%s (Mission %s)" % (self.judgement, self.mission)
+
+    @property
+    def stakeholders(self):
+        s = {}
+        m = self.mission_Mission__object
+        s['prey'] = m.prey_Charactor__object
+        s['hunter'] = m.hunter_Charactor__object
+        for i, judge in enumerate(self.judges_Charactor__objects):
+            s['j' + str(i)] = judge
+        return s
+
+    @property
+    def pay_yes(self):
+        return self.base_pay['yes'] + self.tips['yes']
+
+    @property
+    def pay_no(self):
+        return self.base_pay['no'] + self.tips['no']
 
     def start(self):
         self.choose_judges()
         self.save()
         self.notify_players_start()
 
-    def finish(self, winning_judge, judgement):
-        self.winning_judge = winning_judge
+    def finish(self, winning_judge_obj, judgement):
+        self.winning_judge = winning_judge_obj.id
         self.judgement = judgement
         self.save()
-        m = self.mission_Mission__object
-        # TODO: distribute tips
         if judgement == True:
-            m.hunter_Charactor__object.submission_accepted(self)
+            self.stakeholders['hunter'].submission_accepted(self)
+            winning_judge_obj.add_coin(self.pay_yes)
         else:
-            m.hunter_Charactor__object.submission_rejected(self)
+            self.stakeholders['hunter'].submission_rejected(self)
+            winning_judge_obj.add_coin(self.pay_no)
         self.notify_players_finish()
 
     def choose_judges(self):
@@ -393,16 +418,33 @@ class Submission(models.Model, LazyJason):
         self.judges = [allcs.pop(), allcs.pop()]
 
     def notify_players_start(self):
-        m = self.mission_Mission__object
-        m.prey_Charactor__object.notify_as_prey(self)
+        self.stakeholders['prey'].notify_as_prey(self)
         for judge in self.judges_Charactor__objects:
             judge.notify_as_judge(self)
 
     def notify_players_finish(self):
-        m = self.mission_Mission__object
-        m.prey_Charactor__object.notify_prey_finished(self)
+        self.stakeholders['prey'].notify_prey_finished(self)
         for judge in self.judges_Charactor__objects:
             judge.notify_judge_finished(self)
+
+    def notify_players_tip_change(self):
+        for c in self.stakeholders.values():
+            c.notify_tip_change(self)
+
+    # API ----------------------------------------------
+
+    def judge(self, requestor, charactor, judgement):
+        self.judge_allowed(requestor, charactor)
+        self.finish(charactor, judgement)
+
+    @allower
+    def judge_allowed(self, requestor, charactor):
+        if requestor != charactor.player:
+            raise NotAllowed('not allowed - player does not own char')
+        if charactor not in self.judges_Charactor__objects:
+            raise NotAllowed('not allowed - char is not a judge')
+
+
 
 for val in locals().values():
     if hasattr(val, '__bases__'):
