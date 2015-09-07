@@ -134,6 +134,14 @@ class Player(models.Model, LazyJason):
     def __unicode__(self):
         return self.unique_name
 
+    def authorize_new_session(self, token):
+        if self.last_auth_token == None:
+            return False
+        if str(token) == str(self.last_auth_token):
+            return True
+        else:
+            return False
+
 
 class MissionStunt(models.Model, LazyJason):
     db_attrs = models.CharField(default='{}', max_length=100*1024)

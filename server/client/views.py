@@ -27,12 +27,12 @@ def index(request):
 
 def authorize(request, player_id, token):
     p = get_object_or_404(Player, pk=player_id)
-    if str(p.last_auth_token) != token:
-        request.session['player_id'] = None
-        return HttpResponse('Wrong auth')
-    else:
+    if p.authorize_new_session(token):
         request.session['player_id'] = p.id
         return HttpResponse('Logged in')
+    else:
+        request.session['player_id'] = None
+        return HttpResponse('Wrong auth')
 
 def player(request, player_id):
     session_pid = request.session.get('player_id')
