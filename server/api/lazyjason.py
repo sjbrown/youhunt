@@ -103,6 +103,11 @@ def pre_save_for_lazies(**kwargs):
     print 'in pre save for ', kwargs
     instance.freeze_db_attrs()
 
+def post_save_for_lazies(**kwargs):
+    instance = kwargs.get('instance')
+    print 'in post save for ', instance
+    instance.load()
+
 def post_init_for_lazies(**kwargs):
     instance = kwargs.get('instance')
     instance.load()
