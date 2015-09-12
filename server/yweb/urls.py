@@ -20,4 +20,5 @@ urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
     url(r'^api/v1/', include('api.urls', namespace="api")),
     url(r'^client/', include('client.urls', namespace="client")),
+    url(r'^djuser/', include('djuser.urls')),
 ]
