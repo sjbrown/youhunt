@@ -1,0 +1,23 @@
+{% extends "registration/base.html" %}
+{% load i18n %}
+
+{% block content %}
+<b>
+Note to self: admin stuff must be turned off for this to work.
+They have a namespace collision otherwise.
+</b>
+<form method="post" action=".">
+  {% csrf_token %} 
+  {{ form.as_p }}
+
+  <input type="submit" value="{% trans 'Log in' %}" />
+  <input type="hidden" name="next" value="/client/" />
+</form>
+
+<p>
+{% trans "Forgot password" %}?
+<a href="{% url 'password_reset' %}">{% trans "Reset it" %}</a>!</p>
+<p>
+Don't have an account?
+<a href="???">{% trans "Register" %}</a>!</p>
+{% endblock %}

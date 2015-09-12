@@ -1,0 +1,9 @@
+{% extends "registration/base.html" %}
+{% load i18n %}
+
+{% block content %}
+<b>Logged Out</b>
+
+<p>{% trans "Forgot password" %}? <a href="{% url 'password_reset' %}">{% trans "Reset it" %}</a>!</p>
+<p>{% trans "Not member" %}? <a href="???">{% trans "Register" %}</a>!</p>
+{% endblock %}
