@@ -10,18 +10,28 @@
         </li>
     </ul>
     </li>
+    <li>User {{ user }} Player {{ p }}
+    </li>
     <li>Log in
     <ul>
+        <li><a href="{% url 'login' %}">Djuser Login Page</a>
+        </li>
         <li>Enter your token
-        <input id="player_token" type=text value="s/1/auth/133" disabled/>
-        <a href="{% url 'client:auth' '1' '133' %}">Go</a>
+        {% if p %}
+            <a href="{% url 'client:auth' p.id p.last_auth_token %}"
+            >{% url 'client:auth' p.id p.last_auth_token %}</a>
+        {% else %}
+            <a href="{% url 'client:auth' '0' '0' %}"
+            >{% url 'client:auth' '0' '0' %}</a>
+        {% endif %}
         </li>
     </ul>
     </li>
-    <li>Player page
+    {% if p %}
+        <li>Player page
         <a href="{% url 'client:player' '1' %}">Go</a>
-
-    </li>
+        </li>
+    {% endif %}
 </ul>
 
 

@@ -21,8 +21,17 @@ def index(request):
     print get_object_or_404(Game, pk=1)
     print '----'
     g = get_object_or_404(Game, pk=1)
+    p = None
+
+    session_pid = request.session.get('player_id')
+    if session_pid:
+        p = Player.objects.get(pk=session_pid)
+    if not p and hasattr(request.user, 'playerconnector'):
+        p = request.user.playerconnector.player
+
     return render(request, 'client/index.html', {
         'g': g,
+        'p': p,
     })
 
 def authorize(request, player_id, token):
@@ -36,8 +45,6 @@ def authorize(request, player_id, token):
 
 def player(request, player_id):
     session_pid = request.session.get('player_id')
-    if request.session.get('player_id') != int(player_id):
-        return HttpResponse('Wrong auth')
     p = get_object_or_404(Player, pk=session_pid)
     return render(request, 'client/player.html', {
         'p': p,
