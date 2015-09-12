@@ -6,6 +6,7 @@ ${ c.id } ${ c }, your mission, ${ c.human_readable_mission() },
 <%
     s = c.submission
     judge = c.submission.winning_judge_Charactor__object
+    prey = s.stakeholders['prey']
 %>
 
 <b>
@@ -34,7 +35,32 @@ Submission ${ s } ${ s._jdict }
     </li>
 % else:
     <li>
-    Bounty against <b>${judge}</b> creation goes here
+    Bounty against Judge <b>${judge}</b>
+    <form action="${ make_url('api:new bounty') }"
+          method="post">
+    ${ csrf }
+    <ul>
+        <li><input id="bounty_json" type=text name="bounty_json"
+             value='{"poster_id":"${c.id}", "target_id":"${judge.id}", "amount":50}'
+             /></li>
+        <li><input type="submit" value="New Bounty" />
+        </li>
+    </ul>
+    </form>
+    </li>
+    <li>
+    Bounty against Prey <b>${prey}</b>
+    <form action="${ make_url('api:new bounty') }"
+          method="post">
+    ${ csrf }
+    <ul>
+        <li><input id="bounty_json" type=text name="bounty_json"
+             value='{"poster_id":"${c.id}", "target_id":"${prey.id}", "amount":50}'
+             /></li>
+        <li><input type="submit" value="New Bounty" />
+        </li>
+    </ul>
+    </form>
     </li>
 % endif
 
