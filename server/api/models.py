@@ -147,6 +147,7 @@ class Player(models.Model, LazyJason):
         # TODO: make this smarter
         self.last_auth_token = str(random.randint(10000,99999))
         self.last_auth_token_time = datetime.datetime.now()
+        self.save()
 
 
 class MissionStunt(models.Model, LazyJason):
@@ -199,8 +200,21 @@ class Charactor(models.Model, LazyJason):
             if (s.dismissed == False and s.stakeholders['hunter'] == self)
         ]
         if result:
+            assert len(result) == 1
             return result[0]
         return None
+
+    @property
+    def mission(self):
+        result = [
+            m for m in self.game.mission_set.all()
+            if (m.active == True and m.hunter == str(self.id))
+        ]
+        if result:
+            assert len(result) == 1
+            return result[0]
+        return None
+
 
     @property
     def current_award(self):
@@ -265,9 +279,7 @@ class Charactor(models.Model, LazyJason):
         return random.choice(MissionStunt.objects.all())
 
     def human_readable_mission(self):
-        mission = self.mission_Mission__object
-        return mission.human_readable()
-
+        return self.mission.human_readable()
 
     def notify_as_prey(self, submission):
         self.lazy_set(current_prey_submissions=
@@ -322,7 +334,6 @@ class Charactor(models.Model, LazyJason):
         mission.accept()
 
         self.activity = 'hunting'
-        self.mission = str(mission.id)
         self.potential_missions = []
         self.save()
 
@@ -339,7 +350,7 @@ class Charactor(models.Model, LazyJason):
         self.submit_allowed(requestor, photo_url)
 
         s = Submission(game = self.game)
-        s.mission = str(self.mission)
+        s.mission = str(self.mission.id)
         s.photo_url = photo_url
         s.start()
 
@@ -626,8 +637,8 @@ def scenario_1(delete=False):
         return o
 
     def D(cls, d1, d2):
-        o = cls.objects.get(**d1)
-        o.delete()
+        obs = cls.objects.filter(**d1)
+        [o.delete() for o in obs]
 
     if delete:
         O = D
@@ -648,6 +659,9 @@ def scenario_1(delete=False):
     c6 = O(Charactor, dict(game=g, player=p2), dict(
             c_name='C-Kristy', coin=100))
 
+    if delete:
+        return
+
     g.start(p1)
 
     m = c1.get_potential_missions(self_save=False)[0]
@@ -659,3 +673,9 @@ def scenario_1(delete=False):
 
     c1.submit_mission(p1, 'http://i.imgur.com/L8GlJ3A.gif')
 
+    print 'LOG IN:'
+    print ''
+    print 'http://localhost:8081/client/s/%s/auth/%s' % (
+        p1.id, p1.last_auth_token
+    )
+    print ''
