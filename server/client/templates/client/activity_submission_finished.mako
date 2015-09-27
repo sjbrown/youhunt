@@ -2,12 +2,13 @@
  style="background:#f0f0f0"
  ><h3>Submission Finished</h3>
 
-${ c.id } ${ c }, your mission, ${ c.human_readable_mission() },
 <%
     s = c.submission
+    m = s.mission_Mission__object
     judge = c.submission.winning_judge_Charactor__object
     prey = s.stakeholders['prey']
 %>
+${ c.id } ${ c }, your mission, ${ m.human_readable() },
 
 <b>
 % if s.judgement == True:

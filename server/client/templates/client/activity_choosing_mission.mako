@@ -9,9 +9,9 @@ ${ c.id } ${ c }, your mission is to get a photo of:
 <select>
 % for m in c.get_potential_missions():
     <%
-        print 'M', m
+        print 'M', m.id, m
         prey = m.prey_Charactor__object
-        print 'M', m
+        print 'M', m.id, m
         stunt = MissionStunt.objects.get(id=m.stunt)
         base, additional = m.award_amounts()
         base_s = "%0.2f" % (base/100.0)
@@ -23,6 +23,9 @@ ${ c.id } ${ c }, your mission is to get a photo of:
     % endif
     </option>
 % endfor
+<%
+        print '-M', m.id, m
+%>
 </select>
 
 Doing stunt:
@@ -38,8 +41,14 @@ ${ stunt }
 I accept this mission:
 <form action="${ make_url('api:charactor accept', c.id) }" method="post">
 ${ csrf }
+<%
+        print '-M', m.id, m
+%>
 <ul>
     <li><input id="accept_json" type=text name="accept_json"
+<%
+        print '-M', m.id, m
+%>
          value='{"mission_id":"${m.id}"}'
          /></li>
     <li><input type="submit" />

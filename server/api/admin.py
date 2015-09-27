@@ -5,6 +5,7 @@ from .models import *
 admin.site.register(Player)
 admin.site.register(MissionStunt)
 admin.site.register(Mission)
+admin.site.register(Bounty)
 
 class CharactorInline(admin.TabularInline):
     model = Charactor

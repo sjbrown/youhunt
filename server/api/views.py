@@ -11,7 +11,7 @@ from django.http import HttpResponse, JsonResponse, Http404
 from rest_framework.exceptions import APIException
 from rest_framework.status import HTTP_400_BAD_REQUEST
 
-from .forms import InviteForm, AcceptMissionForm, SubmitMissionForm
+from .forms import InviteForm
 
 class Http400(APIException):
     status_code = HTTP_400_BAD_REQUEST
@@ -43,6 +43,7 @@ def from_json(request, arg_name, *args, **kwargs):
     assert len(json_keys) == 1
     json_key = json_keys[0]
     jdict = kwargs_from_json(request.POST[json_key])
+    print 'Key', arg_name
     return jdict[arg_name]
 
 class Make(object):
@@ -107,6 +108,7 @@ class Make(object):
             else:
                 cls_name = argname
             obj_class = cls.class_mapper[cls_name]
+            print 'Obj class:', obj_class
             obj = get_object_or_404(obj_class, pk=int(id_val))
             return obj
         return an_obj_wrapper
@@ -196,9 +198,10 @@ def game_invite(request, game_id):
 def charactor_accept(
     request,
     p = from_session,
-    c = Make.a__Charactor(from_path),
+    c = Make.a__Charactor(from_path, 'charactor_id'),
     m = Make.an_obj(from_json, 'mission_id'),
 ):
+    print 'accept_mission', p, m
     c.accept_mission(p, m)
     return {'success':True}
 
@@ -207,7 +210,7 @@ def charactor_accept(
 def charactor_submit(
     request,
     p = from_session,
-    c = Make.a__Charactor(from_path),
+    c = Make.a__Charactor(from_path, 'charactor_id'),
     photo_url = Make.a_str(from_json, 'photo_url'),
 ):
     c.submit_mission(p, photo_url)

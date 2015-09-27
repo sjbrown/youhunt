@@ -22,8 +22,7 @@ def on_create(**kwargs):
         return
     newu = kwargs.get('instance')
     newp = Player(unique_name=newu.username)
-    newp.make_token()
-    newp.save()
+    newp.make_token() # this does the save()
     newpc = PlayerConnector(user=newu, player_id=newp.id)
     newpc.save()
 

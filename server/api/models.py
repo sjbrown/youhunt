@@ -206,6 +206,11 @@ class Charactor(models.Model, LazyJason):
 
     @property
     def mission(self):
+        '''
+        Note: if the Charactor's Submission is complete, but not dismissed,
+        the .mission attribute will be None, so access the finished mission
+        via the .submission property.
+        '''
         result = [
             m for m in self.game.mission_set.all()
             if (m.active == True and m.hunter == str(self.id))
