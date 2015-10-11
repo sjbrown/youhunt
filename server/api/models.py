@@ -52,11 +52,14 @@ class Game(models.Model, LazyJason):
     _lazy_defaults = dict(
         creator = None,
         started = False,
-        invites = [],
     )
 
     def __unicode__(self):
         return self.name
+
+    @property
+    def players(self):
+        return [c.player for c in self.charactor_set.all()]
 
     def new_charactor(self, player):
         c = Charactor(game=self, player=player)
@@ -110,24 +113,34 @@ class Game(models.Model, LazyJason):
         if not set(p_chars).intersection(g_chars):
             raise NotAllowed('start not allowed - you are not in this game')
 
-    def invite(self, requestor, invite_json):
-        self.invite_allowed(requestor, invite_json)
-        #TODO: maybe use F() here?
-        self.lazy_set(invites=self.invites+[invite_json])
+    def invite(self, requestor, unique_id, name=''):
+        self.invite_allowed(requestor, unique_id, name)
+
+        try:
+            p = Player.objects.get(unique_name=unique_id)
+        except Player.DoesNotExist:
+            p = Player(unique_name=unique_id)
+        p.alias = name
+        p.save()
+
+        i = Invite(game=self)
+        i.created_by = str(requestor.id)
+        i.created_for = str(p.id)
+        i.state = 'queued'
+        i.save()
+
         self.save()
 
     @allower
-    def invite_allowed(self, requestor, invite_json):
-        try:
-            json.loads(invite_json)
-        except:
-            raise NotAllowed('invite not allowed - invalid JSON')
-
+    def invite_allowed(self, requestor, unique_id, name):
+        if requestor not in self.players:
+            raise NotAllowed('invite not allowed - player not in this game')
 
 class Player(models.Model, LazyJason):
     unique_name = models.CharField(max_length=1024)
     db_attrs = models.CharField(default='{}', max_length=100*1024)
     _lazy_defaults = dict(
+        alias='',
         last_auth_token=None,
         last_auth_token_time=None,
     )
@@ -167,7 +180,21 @@ class Event(models.Model, LazyJason):
     _created = CreationDateTimeField()
     game = models.ForeignKey(Game)
     db_attrs = models.CharField(default='{}', max_length=100*1024)
-    _lazy_defaults = {'name':'generic event'}
+    _lazy_defaults = dict(
+        name = 'generic event',
+    )
+
+
+class Invite(models.Model, LazyJason):
+    _created = CreationDateTimeField()
+    game = models.ForeignKey(Game)
+    db_attrs = models.CharField(default='{}', max_length=100*1024)
+    _lazy_defaults = dict(
+        name = 'Invite',
+        created_by = None,
+        created_for = None,
+        state = 'null',
+    )
 
 
 class Charactor(models.Model, LazyJason):

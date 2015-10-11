@@ -31,7 +31,7 @@ ${ c._jdict }
 
 
         % if not g.started:
-            <li>Current invites ${ g.invites }
+            <li>Current invites ${ g.invite_set.all() }
             <li>Invite players to game ${ g }
             % if start_allowed:
                 <li><a href="${ make_url('api:game start', g.id) }"

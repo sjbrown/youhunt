@@ -11,8 +11,6 @@ from django.http import HttpResponse, JsonResponse, Http404
 from rest_framework.exceptions import APIException
 from rest_framework.status import HTTP_400_BAD_REQUEST
 
-from .forms import InviteForm
-
 class Http400(APIException):
     status_code = HTTP_400_BAD_REQUEST
 
@@ -28,13 +26,25 @@ def kwargs_from_json(jdata):
     assert type(json_data) == dict
     return json_data
 
+class ArgNotFound(Exception):
+    pass
+
 def from_session(request, arg_name='player_id', *args, **kwargs):
-    return Player.objects.get(pk=request.session.get('player_id'))
+    # TODO: this only does the player object now.  Might be all we ever need.
+    try:
+        val = request.session['player_id']
+    except KeyError:
+        raise ArgNotFound('session - %s' % 'player_id')
+    return Player.objects.get(pk=val)
 
 def from_path(request, arg_name, *args, **kwargs):
     if type(arg_name) == int:
         return args[arg_name]
-    return kwargs[arg_name]
+    try:
+        val = kwargs[arg_name]
+    except KeyError:
+        raise ArgNotFound('path %s' % arg_name)
+    return val
 
 def from_json(request, arg_name, *args, **kwargs):
     print request.POST
@@ -44,9 +54,16 @@ def from_json(request, arg_name, *args, **kwargs):
     json_key = json_keys[0]
     jdict = kwargs_from_json(request.POST[json_key])
     print 'Key', arg_name
-    return jdict[arg_name]
+    try:
+        val = jdict[arg_name]
+    except KeyError:
+        raise ArgNotFound('json %s' % arg_name)
+    return val
+
 
 class Make(object):
+    FAIL = object() # A sentinel
+
     class_mapper = dict(
         game = Game,
         player = Player,
@@ -56,46 +73,56 @@ class Make(object):
     )
 
     @staticmethod
-    def literal_wrapper(from_fn, field_name, literal_type):
+    def literal_wrapper(from_fn, field_name, literal_type, otherwise=FAIL):
         def l_wrapper(request, argname, *fn_args, **fn_kwargs):
             if field_name is not None:
                 argname = field_name
-            val = from_fn(request, argname, *fn_args, **fn_kwargs)
-            val = literal_type(val)
+            try:
+                val = from_fn(request, argname, *fn_args, **fn_kwargs)
+                val = literal_type(val)
+            except ArgNotFound:
+                if otherwise == FAIL:
+                    raise
+                val = otherwise
             return val
         return l_wrapper
 
     @staticmethod
-    def class_wrapper(from_fn, field_name, obj_class):
+    def class_wrapper(from_fn, field_name, obj_class, otherwise=FAIL):
         def o_wrapper(request, argname, *fn_args, **fn_kwargs):
             if field_name is not None:
                 argname = field_name
             else:
                 argname += '_id'
-            val = from_fn(request, argname, *fn_args, **fn_kwargs)
-            obj = get_object_or_404(obj_class, pk=int(val))
+            try:
+                val = from_fn(request, argname, *fn_args, **fn_kwargs)
+                obj = get_object_or_404(obj_class, pk=int(val))
+            except ArgNotFound:
+                if otherwise == FAIL:
+                    raise
+                obj = otherwise
             return obj
         return o_wrapper
 
 
     @staticmethod
-    def an_int(from_fn, field_name=None):
-        return Make.literal_wrapper(from_fn, field_name, int)
+    def an_int(from_fn, field_name=None, otherwise=FAIL):
+        return Make.literal_wrapper(from_fn, field_name, int, otherwise)
 
     @staticmethod
-    def a_str(from_fn, field_name=None):
+    def a_str(from_fn, field_name=None, otherwise=FAIL):
         return Make.literal_wrapper(from_fn, field_name, str)
 
     @staticmethod
-    def a_bool(from_fn, field_name=None):
+    def a_bool(from_fn, field_name=None, otherwise=FAIL):
         return Make.literal_wrapper(from_fn, field_name, bool)
 
     @staticmethod
-    def a__Charactor(from_fn, field_name=None):
+    def a__Charactor(from_fn, field_name=None, otherwise=FAIL):
         return Make.class_wrapper(from_fn, field_name, Charactor)
 
     @classmethod
-    def an_obj(cls, from_fn, field_name=None):
+    def an_obj(cls, from_fn, field_name=None, otherwise=FAIL):
         def an_obj_wrapper(request, argname, *fn_args, **fn_kwargs):
             if field_name is not None:
                 argname = field_name
@@ -180,18 +207,16 @@ def game_start(request, game_id):
     return JsonResponse(j)
 
 
-def game_invite(request, game_id):
-    p = from_session(request)
-    g = get_object_or_404(Game, pk=int(game_id))
-    form = InviteForm(request.POST)
-    if not form.is_valid():
-        raise Http400(detail="Invalid invite")
-    try:
-        g.invite(requestor=p, invite_json=form.cleaned_data['invite_json'])
-    except NotAllowed as e:
-        raise Http400(detail=e.message)
-    j = g.to_dict()
-    return JsonResponse(j)
+@Make.args
+def game_invite(
+    request,
+    p = from_session,
+    g = Make.an_obj(from_path, 'game_id'),
+    unique_id = Make.a_str(from_json),
+    name = Make.a_str(from_json, otherwise=''),
+):
+    g.invite(p, unique_id, name)
+    return g.to_dict()
 
 
 @Make.args
