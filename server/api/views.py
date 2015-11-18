@@ -163,6 +163,7 @@ class Make(object):
         return wrapper
 
 
+
 # --- API ENDPOINTS ----------------------------------------------------
 
 def index(request):
@@ -187,24 +188,24 @@ def game(request, game_id):
     j = g.to_dict()
     return JsonResponse(j)
 
-def new_game(request, name):
-    p = from_session(request)
-    try:
-        g = Game.create_new_game(name=name, creator=p)
-    except NotAllowed as e:
-        raise Http400(detail=e.message)
-    return JsonResponse(dict(game_id=g.id, status='happy jazz'))
+
+@Make.args
+def new_game(
+    request,
+    p = from_session,
+):
+    g = Game.create_new_game(name=name, creator=p)
+    return dict(game_id=g.id, status='happy jazz')
 
 
-def game_start(request, game_id):
-    p = from_session(request)
-    g = get_object_or_404(Game, pk=int(game_id))
-    try:
-        g.start(requestor=p)
-    except NotAllowed as e:
-        raise Http400(detail=e.message)
-    j = g.to_dict()
-    return JsonResponse(j)
+@Make.args
+def game_start(
+    request,
+    p = from_session,
+    g = Make.an_obj(from_path, 'game_id'),
+):
+    g.start(p, requestor=p)
+    return g.to_dict()
 
 
 @Make.args
