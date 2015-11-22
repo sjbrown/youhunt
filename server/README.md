@@ -19,7 +19,7 @@ in yweb/. That's fine.)
 
 This creates the databases.
 
-Change the permissions to `.` so that you own everything: `sudo chown $USER -R .`
+Change the permissions to `.` so that you own everything: `sudo chown -R $USER .`
 
 
 ## Start it running:
