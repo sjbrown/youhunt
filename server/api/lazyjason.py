@@ -49,7 +49,7 @@ class LazyJason(object):
         else:
             print 'SHOULD NOT GET HERE'
 
-        self.db_attrs = json.dumps(dba)
+        self.db_attrs = json.dumps(dba, default=date_handler)
 
     def __getattr__(self, attrname):
         #if not hasattr(self, '_jdict'):
@@ -97,6 +97,11 @@ class LazyJason(object):
         for key in extra_args:
             d[key] = getattr(self, key)
         return d
+
+
+def date_handler(obj):
+    return obj.isoformat() if hasattr(obj, 'isoformat') else obj
+
 
 def pre_save_for_lazies(**kwargs):
     instance = kwargs.get('instance')
